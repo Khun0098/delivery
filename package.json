@@ -1,0 +1,17 @@
+{
+  "name": "delivery-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Plataforma de delivery multi-estabelecimento: site do cliente, site do vendedor e ambiente admin, com backend único.",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "seed": "node scripts/seed.mjs",
+    "start:api": "node --disable-warning=ExperimentalWarning apps/api/server.js",
+    "start:sites": "node scripts/serve-sites.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --disable-warning=ExperimentalWarning tests/e2e.mjs"
+  }
+}
