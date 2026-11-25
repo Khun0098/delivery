@@ -123,7 +123,10 @@
     document.querySelectorAll('.lateral a[href]').forEach((a) => { if (a.getAttribute('href') === hash) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     document.getElementById('titulo').textContent = TITULOS[hash] || 'Painel';
     const rota = { '#/': telaDashboard, '#/pedidos': telaPedidos, '#/cardapio': telaCardapio, '#/loja': telaLoja, '#/financeiro': telaFinanceiro }[hash];
-    try { await (rota || telaDashboard)(); } catch (e) { document.getElementById('conteudo').innerHTML = `<div class="erro">${esc(e.message)}</div>`; }
+    try { await (rota || telaDashboard)(); } catch (e) {
+      const alvo = document.getElementById('conteudo'); // pode já não existir se a pessoa saiu da conta durante o carregamento
+      if (alvo && me) alvo.innerHTML = `<div class="erro">${esc(e.message)}</div>`;
+    }
   }
 
   // ---------- login ----------

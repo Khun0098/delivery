@@ -92,7 +92,8 @@
     const carregar = async () => {
       const data = await api('GET', `/public/estabelecimentos?q=${encodeURIComponent(q)}&categoria=${encodeURIComponent(cat)}`);
       const lista = document.getElementById('lista');
-      document.getElementById('chips').innerHTML = [['', 'Todos'], ...data.categorias.map((c) => [c, c])]
+      if (!lista || !document.getElementById('chips')) return; // o cliente saiu da página antes da resposta chegar
+      document.getElementById('chips').innerHTML =[['', 'Todos'], ...data.categorias.map((c) => [c, c])]
         .map(([v, t]) => `<button class="chip" data-cat="${esc(v)}" aria-pressed="${cat === v}">${esc(t)}</button>`).join('');
       lista.innerHTML = data.estabelecimentos.length ? data.estabelecimentos.map(cardLoja).join('')
         : `<div class="vazio" style="grid-column:1/-1"><b>Nada encontrado</b>Tente outro nome, categoria ou produto.</div>`;

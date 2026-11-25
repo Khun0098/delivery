@@ -14,6 +14,12 @@ deploy/       nginx.conf e .env.example para produção
 Cada site é uma pasta estática independente (HTML/CSS/JS próprios, sem código compartilhado) servida em **sua própria origem**.
 Os três falam com a mesma API e o mesmo banco.
 
+## Ver funcionando sem instalar nada
+
+Abra **`demo/index.html`** no navegador (duplo clique). Ela reúne os três sites reais e um servidor simulado dentro da página (dados fictícios, em memória).
+Use "Cliente e vendedor lado a lado" para ver o pedido chegar com a campainha e o status voltar para o cliente.
+Para regenerar depois de mudar os sites: `node demo/build.mjs`.
+
 ## Rodar localmente
 
 Requer Node 22.5 ou superior. Não há `npm install`.
