@@ -47,6 +47,7 @@ h2{font-family:var(--head);font-size:23px;margin:0 0 12px}
 .preco{margin-top:auto;padding-top:4px;font-weight:800;font-size:17px}
 .preco s{color:var(--muted);font-weight:600;font-size:13px;margin-left:6px}
 .preco i{font-style:normal;background:var(--lime);color:var(--lime-fg);border-radius:6px;padding:1px 7px;font-size:12px;margin-left:6px}
+footer a.adm{display:inline-block;margin-top:14px;padding:8px 16px;border:1.5px solid var(--line);border-radius:99px;color:var(--muted);font-weight:700;text-decoration:none;font-size:13px}
 footer{padding-block:34px 140px;color:var(--muted);font-size:14px;text-align:center}
 /* barra da sacola */
 .barra{position:fixed;left:0;right:0;bottom:0;z-index:8;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:linear-gradient(transparent,var(--bg) 40%)}
@@ -119,7 +120,7 @@ function aplicar(m){
   const r=document.documentElement.style;
   if(T.marca) r.setProperty('--brand',T.marca); if(T.destaque) r.setProperty('--lime',T.destaque);
   if(T.fundo && !matchMedia('(prefers-color-scheme:dark)').matches) r.setProperty('--bg',T.fundo);
-  $('#nomeLoja').textContent=L.nome||''; $('#slogan').textContent=L.slogan||''; $('#rodape').innerHTML=esc(L.nome||'')+' · Cardápio'+(L.rodape?'<br>'+esc(L.rodape):'');
+  $('#nomeLoja').textContent=L.nome||''; $('#slogan').textContent=L.slogan||''; $('#rodape').innerHTML=esc(L.nome||'')+' · Cardápio'+(L.rodape?'<br>'+esc(L.rodape):'')+'<br><a class="adm" href="admin.html">Área da loja</a>';
   $('#info').innerHTML=(L.info||[]).map(t=>'<span>'+esc(t)+'</span>').join('');
   document.title=L.nome||'Cardápio';
   sacola=sacola.filter(l=>POR_ID[l.id]);
