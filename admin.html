@@ -64,7 +64,7 @@ $('#entrar').onclick=entrar;$('#cod').addEventListener('keydown',e=>{if(e.key===
 $('#sair').onclick=async()=>{await SB.auth.signOut();location.reload()};
 async function abrir(){
  $('#login').hidden=true;$('#app').hidden=false;
- try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados&&Array.isArray(data.dados.categorias)&&data.dados.categorias.some(c=>Array.isArray(c.itens)&&c.itens.length))M=data.dados;}catch(e){}
+ try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados&&Array.isArray(data.dados.categorias)&&data.dados.categorias.some(c=>Array.isArray(c.itens)&&c.itens.some(i=>i.ativo!==false)))M=data.dados;}catch(e){}
  if(!M){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)M=await r.json();}catch(e){}}
  if(!M)M={tema:{marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'},loja:{nome:'Açaí Papum',slogan:'',info:[],whatsapp:'',minimo:0,rodape:''}};
  desenhar();estado('Conectado ao cardápio online');
