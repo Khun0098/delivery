@@ -293,7 +293,7 @@ async function carregar(primeira){
  if(location.search.includes('preview')){try{rasc=JSON.parse(localStorage.getItem('papum-rascunho'));}catch(e){}}
  if(rasc)m=rasc;
  else{try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados)m=data.dados;else{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}}catch(e){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}catch(x){}}}
- const txt=JSON.stringify(m);if(txt===ultimo)return;ultimo=txt;aplicar(m);if(primeira||!camada.innerHTML){desenharMenu();barra();}
+ const txt=JSON.stringify(m);if(txt===ultimo)return;ultimo=txt;aplicar(m);desenharMenu();barra();
 }
 carregar(true);
 if(!location.search.includes('preview'))canal=SB.channel('cardapio-em-tempo-real').on('postgres_changes',{event:'*',schema:'public',table:'cardapio',filter:'id=eq.1'},()=>carregar(false)).subscribe();
