@@ -32,16 +32,18 @@ textarea.g{min-height:120px;font:14px/1.4 ui-monospace,Menlo,monospace}
 small{color:var(--mu)}
 #login{max-width:360px;margin:18vh auto 0}
 </style></head><body>
-<div class="w" id="login"><div class="card"><h1>Painel do cardápio</h1><label>Código de acesso<input id="cod" type="password" autocomplete="current-password"></label><p id="le" class="msg e" hidden>Código incorreto.</p><p><button class="b p" id="entrar" type="button" style="width:100%">Entrar</button></p></div></div>
+<div class="w" id="login"><div class="card"><h1>Painel do cardápio</h1><label>E-mail<input id="email" type="email" autocomplete="username" value="cria2011.gamer@gmail.com"></label><label>Senha<input id="cod" type="password" autocomplete="current-password"></label><p id="le" class="msg e" hidden>Não foi possível entrar. Confira e-mail, senha e acesso de administrador.</p><p><button class="b p" id="entrar" type="button" style="width:100%">Entrar</button></p></div></div>
 <div class="w" id="app" hidden>
- <div class="bar"><h1>Painel · Açaí Papum</h1><a class="b" href="index.html?preview" target="_blank" rel="noopener" style="text-decoration:none">Pré-visualizar</a><span id="est" style="font-size:13px;font-weight:700"></span><button class="b p" id="pub" type="button">Publicar</button><button class="b" id="sair" type="button">Sair</button></div>
+ <div class="bar"><h1>Painel · Açaí Papum</h1><a class="b" href="index.html?preview" target="_blank" rel="noopener" style="text-decoration:none">Pré-visualizar</a><span id="est" style="font-size:13px;font-weight:700"></span><button class="b p" id="pub" type="button">Salvar agora</button><button class="b" id="sair" type="button">Sair</button></div>
  <div id="aviso"></div>
  <div class="tabs" id="tabs"></div>
  <div id="conteudo"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-const HASH='d3599879b3f320fd7fa6a716b50cfd729e9dd2cf207c80d31a1ce294e34b920d';           // SHA-256 do código de acesso
+const SB=window.supabase.createClient('https://iibeixnwghfbbkdjaejl.supabase.co','sb_publishable_SFS0g-Z7gPG26aIYTvJxLg_2mF0Ca90');
 const REPO_PADRAO='Khun0098/delivery';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -53,28 +55,26 @@ const cents=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n
 const reais=c=>c?(c/100).toFixed(2).replace('.',','):'';
 
 async function entrar(){
-  if(await sha($('#cod').value.trim())!==HASH){ $('#le').hidden=false; return; }
-  ls.set('papum-adm','1'); abrir();
+ $('#le').hidden=true;
+ const {data,error}=await SB.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#cod').value});
+ if(error||data.user?.app_metadata?.role!=='admin'){ $('#le').hidden=false;if(data.user)await SB.auth.signOut();return; }
+ abrir();
 }
-$('#entrar').onclick=entrar; $('#cod').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
-$('#sair').onclick=()=>{ls.del('papum-adm');location.reload()};
+$('#entrar').onclick=entrar;$('#cod').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
+$('#sair').onclick=async()=>{await SB.auth.signOut();location.reload()};
 async function abrir(){
-  $('#login').hidden=true; $('#app').hidden=false;
-  let rasc=null; try{rasc=JSON.parse(ls.get('papum-rascunho'))}catch(e){}
-  try{ const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'}); if(r.ok) M=await r.json(); }catch(e){}
-  if(rasc&&(!M||confirm0())) { M=rasc; sujo=true; aviso('Você tem alterações ainda não publicadas (rascunho salvo neste aparelho).'); }
-  if(!M) M={tema:{marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'},loja:{nome:'Açaí Papum',slogan:'',info:[],whatsapp:'',minimo:0,rodape:''},categorias:[]};
-  desenhar(); estado(sujo?'Alterações não publicadas':'');
+ $('#login').hidden=true;$('#app').hidden=false;
+ try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados)M=data.dados;}catch(e){}
+ if(!M){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)M=await r.json();}catch(e){}}
+ if(!M)M={tema:{marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'},loja:{nome:'Açaí Papum',slogan:'',info:[],whatsapp:'',minimo:0,rodape:''}};
+ desenhar();estado('Conectado ao cardápio online');
 }
-const confirm0=()=>true;
 function aviso(t,erro){ $('#aviso').innerHTML=t?`<div class="msg ${erro?'e':''}" role="status">${esc(t)}</div>`:''; }
 function estado(t){ const e=document.getElementById('est'); if(e) e.textContent=t||''; }
 function cfg(){ try{return JSON.parse(ls.get('papum-gh')||'{}')}catch(e){return{}} }
 let timer=null;
-function rascunho(){ sujo=true; ls.set('papum-rascunho',JSON.stringify(M)); const g=cfg();
-  if(g.token&&g.auto){ estado('Publicando em instantes…'); clearTimeout(timer); timer=setTimeout(()=>publicar(true),1500); }
-  else estado('Alterações não publicadas'); }
-$('#pub').onclick=()=>{ const g=cfg(); if(g.token&&g.repo) publicar(false); else { aba='pub'; desenhar(); aviso('Para o site mostrar as mudanças para todos, informe o token do GitHub e toque em Publicar agora.',true); window.scrollTo(0,0); } };
+function rascunho(){sujo=true;ls.set('papum-rascunho',JSON.stringify(M));estado('Salvando automaticamente…');clearTimeout(timer);timer=setTimeout(()=>publicar(true),900);}
+$('#pub').onclick=()=>publicar(false);
 
 function desenhar(){
   $('#tabs').innerHTML=[['produtos','Produtos e categorias'],['loja','Loja e cores'],['pub','Publicar'],['qr','QR Code']].map(([k,t])=>`<button type="button" data-aba="${k}" aria-pressed="${aba===k}">${t}</button>`).join('');
@@ -117,14 +117,7 @@ function gerarQR(){ const el=document.getElementById('qr'); if(!el)return; el.in
   if(typeof QRCode==='undefined'){ document.getElementById('qr-erro').hidden=false; return; }
   new QRCode(el,{text:u,width:256,height:256,correctLevel:QRCode.CorrectLevel.M}); }
 document.addEventListener('input',e=>{ if(e.target.id==='qr-url') gerarQR(); });
-function htmlPublicar(){ const g=cfg(); return `<div class="card"><h2>Publicar no site</h2>
- <p>As alterações ficam salvas neste aparelho até você publicar. Depois de publicar, o site online leva cerca de 1 minuto para atualizar e os clientes veem sozinhos, sem recarregar.</p>
- <label>Repositório<input id="gh-repo" value="${esc(g.repo||REPO_PADRAO)}"></label>
- <label>Token do GitHub<small> (com permissão de escrever no repositório; fica só neste aparelho)</small><input id="gh-token" type="password" autocomplete="off" value="${esc(g.token||'')}"></label>
- <label class="chk" style="margin-top:12px"><input type="checkbox" id="gh-auto" ${g.auto?'checked':''}>Publicar automaticamente a cada alteração</label>
- <p><button class="b p" data-a="publicar" type="button">Publicar agora</button> <button class="b" data-a="baixar" type="button">Baixar menu.json</button></p>
- <p><small>Sem token? Baixe o menu.json e envie no GitHub (Add file → Upload files), substituindo o antigo. Fotos novas ficam dentro do menu.json.</small></p></div>`; }
-
+function htmlPublicar(){return '<div class="card"><h2>Sincronização online</h2><p>As alterações são salvas automaticamente no Supabase e aparecem para os clientes em tempo real.</p><p>Use “Salvar agora” para forçar uma gravação imediata.</p></div>';}
 document.addEventListener('click',async e=>{
   const ab=e.target.closest('[data-aba]'); if(ab){aba=ab.dataset.aba;desenhar();return;}
   const a=e.target.closest('[data-a]'); if(!a)return; const act=a.dataset.a;
@@ -162,35 +155,20 @@ document.addEventListener('change',e=>{
 function reduzir(file){ return new Promise((ok,no)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{ const t=520, k=Math.min(1,t/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
   c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg',.82)); }; im.onerror=no; im.src=u; }); }
 function baixar(){ const b=new Blob([JSON.stringify(M,null,1)],{type:'application/json'}), a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='menu.json'; document.body.appendChild(a); a.click(); a.remove(); aviso('menu.json baixado. Envie ele no GitHub para publicar.'); }
-const b64=s=>btoa(unescape(encodeURIComponent(s)));
-async function gh(repo,token,path,corpo){
-  const url=`https://api.github.com/repos/${repo}/contents/${path}`, H={Authorization:'Bearer '+token,Accept:'application/vnd.github+json'};
-  let sha; const r0=await fetch(url,{headers:H}); if(r0.ok) sha=(await r0.json()).sha;
-  const r=await fetch(url,{method:'PUT',headers:H,body:JSON.stringify({message:'Atualiza cardápio',content:corpo,sha})});
-  if(!r.ok) throw new Error((await r.json()).message||r.status);
-}
-let publicando=false, pendente=false;
+let publicando=false,pendente=false;
 async function publicar(auto){
-  const el=document.getElementById('gh-repo');
-  let g=cfg();
-  if(el){ g={repo:el.value.trim(),token:document.getElementById('gh-token').value.trim(),auto:document.getElementById('gh-auto').checked}; }
-  if(!g.repo||!g.token){ aviso('Informe o repositório e o token, ou use "Baixar menu.json".',true); return; }
-  ls.set('papum-gh',JSON.stringify(g));
-  if(publicando){ pendente=true; return; }
-  publicando=true; estado('Publicando…'); if(!auto) aviso('Publicando…');
-  try{
-    let trocou=false;
-    for(const c of M.categorias) for(const i of c.itens) if((i.img||'').startsWith('data:')){
-      const caminho='img/'+i.id+'-'+Date.now().toString(36)+'.jpg'; await gh(g.repo,g.token,caminho,i.img.split(',')[1]); i.img=caminho; trocou=true; }
-    await gh(g.repo,g.token,'menu.json',b64(JSON.stringify(M,null,1)));
-    ls.set('papum-rascunho',JSON.stringify(M)); sujo=false;
-    const h=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    estado('Publicado às '+h);
-    aviso('Publicado às '+h+'. O site online atualiza em cerca de 1 minuto e os clientes veem sozinhos.');
-    if(!auto||trocou&&aba!=='produtos') desenhar();
-  }catch(err){ estado('Erro ao publicar'); aviso('Não foi possível publicar: '+err.message+'. Confira o token (precisa de permissão de escrita) e o nome do repositório.',true); }
-  publicando=false; if(pendente){ pendente=false; publicar(true); }
+ if(!M)return;if(publicando){pendente=true;return;}publicando=true;estado('Salvando no banco…');
+ try{
+  const {data:{user}}=await SB.auth.getUser();
+  if(!user||user.app_metadata?.role!=='admin')throw new Error('Sessão administrativa inválida. Entre novamente.');
+  const {error}=await SB.from('cardapio').upsert({id:1,dados:M,atualizado_em:new Date().toISOString()});
+  if(error)throw error;
+  ls.set('papum-rascunho',JSON.stringify(M));sujo=false;
+  estado('Salvo online às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  aviso('Cardápio salvo! As alterações serão exibidas aos clientes conectados.');
+ }catch(err){estado('Erro ao salvar');aviso('Não foi possível salvar: '+(err.message||'verifique conexão e permissões no Supabase.'),true);}
+ publicando=false;if(pendente){pendente=false;publicar(true);}
 }
 addEventListener('beforeunload',e=>{ if(sujo&&!cfg().auto){ e.preventDefault(); } });
-if(ls.get('papum-adm')==='1') abrir();
+SB.auth.getSession().then(({data})=>{const u=data.session?.user;if(u?.app_metadata?.role==='admin')abrir();});
 </script></body></html>
