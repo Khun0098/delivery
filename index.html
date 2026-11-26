@@ -292,7 +292,7 @@ async function carregar(primeira){
  let m=DEFAULT,rasc=null;
  if(location.search.includes('preview')){try{rasc=JSON.parse(localStorage.getItem('papum-rascunho'));}catch(e){}}
  if(rasc)m=rasc;
- else{try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados&&Array.isArray(data.dados.categorias)&&data.dados.categorias.some(c=>Array.isArray(c.itens)&&c.itens.length))m=data.dados;else{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}}catch(e){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}catch(x){}}}
+ else{try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados&&Array.isArray(data.dados.categorias)&&data.dados.categorias.some(c=>Array.isArray(c.itens)&&c.itens.some(i=>i.ativo!==false)))m=data.dados;else{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}}catch(e){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}catch(x){}}}
  const txt=JSON.stringify(m);if(txt===ultimo)return;ultimo=txt;aplicar(m);desenharMenu();barra();
 }
 carregar(true);
