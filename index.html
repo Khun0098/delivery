@@ -110,6 +110,7 @@ a.btn{text-decoration:none;justify-content:center;text-align:center}
 <div class="barra" id="barra" hidden><button id="abrirSacola" type="button"><span id="barraQtd"></span><span>Ver sacola</span><span id="barraTotal"></span></button></div>
 <div id="camada"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let WHATSAPP='', MIN=990, CATS=[], POR_ID={};
 const DEFAULT = {"tema": {"marca": "#3a1161", "destaque": "#a6e03d", "fundo": "#f7f3fb"}, "loja": {"nome": "Açaí Papum", "slogan": "Pediu, chegou, gelou!", "info": ["Entrega grátis", "43–53 min", "Pedido mínimo R$ 9,90"], "whatsapp": "", "minimo": 990, "rodape": "Atendimento a partir das 13h"}, "categorias": [{"id": "acai", "nome": "Açaí e gourmet", "itens": [{"id": "acai", "nome": "Açaí Artesanal de 200ml + 3 complementos grátis", "desc": "Açaí cremoso, puro e geladinho, sem cristais de gelo. Escolha até 3 acompanhamentos grátis. Monte o seu.", "p": 1490, "de": 1990, "img": "img/acai.jpg", "grupos": [{"id": "g", "t": "Adicionais grátis", "d": "Escolha pelo menos 1 opção (até 3).", "min": 1, "max": 3, "ops": [{"n": "Cereal chocoball", "p": 0}, {"n": "Paçoca", "p": 0}, {"n": "Granola", "p": 0}, {"n": "Coco ralado", "p": 0}, {"n": "Granulado de chocolate", "p": 0}]}, {"id": "c", "t": "Caldas", "d": "Escolha até 1 opção.", "min": 0, "max": 1, "ops": [{"n": "Caramelo", "p": 0}, {"n": "Leite condensado", "p": 0}, {"n": "Chocolate", "p": 0}, {"n": "Morango", "p": 0}]}, {"id": "e", "t": "Que tal acrescentar mais?", "d": "Escolha até 4 opções.", "min": 0, "max": 4, "ops": [{"n": "Ovomaltine", "p": 250}, {"n": "Confetes de chocolates", "p": 250}, {"n": "Leite em pó", "p": 250}, {"n": "Granola", "p": 250}, {"n": "Paçoca", "p": 250}, {"n": "Nestón", "p": 250}, {"n": "Coco ralado", "p": 250}, {"n": "Granulado de chocolate", "p": 250}]}], "ativo": true}, {"id": "combo", "nome": "Combo Duas Tentações Cookies & Cream + Ferrero Rocher 200ml", "desc": "Duas tentações em um só pedido! De um lado, a cremosidade irresistível do Cookies & Cream. Do outro, a explosão de sabor do Ferrero Rocher.", "p": 3890, "de": 5990, "img": "img/combo.jpg", "grupos": [], "ativo": true}, {"id": "cookies", "nome": "Pápum Gourmet - Cookies & Cream", "desc": "Creme de Cookies & Cream. Uma combinação irresistível de creme aveludado com o sabor inconfundível de Cookies.", "p": 2290, "de": 2990, "img": "img/cookies.jpg", "grupos": [], "ativo": true}, {"id": "ferrero", "nome": "Pápum Gourmet - Trufadão Ferrero Rocher + 2 complementos grátis", "desc": "O clássico bombom virou açaí! Copo intensamente recheado com camadas da legítima Nutella pura e a crocância irresistível do Ferrero Rocher.", "p": 2290, "de": 2990, "img": "img/ferrero.jpg", "grupos": [{"id": "g", "t": "Complementos grátis", "d": "Escolha até 2 opções.", "min": 0, "max": 2, "ops": [{"n": "Cereal chocoball", "p": 0}, {"n": "Paçoca", "p": 0}, {"n": "Granola", "p": 0}, {"n": "Coco ralado", "p": 0}, {"n": "Granulado de chocolate", "p": 0}]}], "ativo": true}, {"id": "ninho", "nome": "Pápum Gourmet - Trufadão Ninho c/ Nutella + 2 complementos grátis", "desc": "O verdadeiro trufado! Copo mega recheado com camadas generosas de Nutella pura e nosso exclusivo e cremoso creme de Ninho.", "p": 2290, "de": 2990, "img": "img/ninho.jpg", "grupos": [{"id": "g", "t": "Complementos grátis", "d": "Escolha até 2 opções.", "min": 0, "max": 2, "ops": [{"n": "Cereal chocoball", "p": 0}, {"n": "Paçoca", "p": 0}, {"n": "Granola", "p": 0}, {"n": "Coco ralado", "p": 0}, {"n": "Granulado de chocolate", "p": 0}]}], "ativo": true}]}, {"id": "bebidas", "nome": "Bebidas", "itens": [{"id": "coca", "nome": "Coca-Cola Pet Mini 200 ml", "desc": "Garrafa 200ml.", "p": 399, "img": "img/coca.jpg", "grupos": [], "ativo": true}, {"id": "agua", "nome": "Água Mineral com Gás 500ml Passa Quatro", "desc": "Garrafa 500ml.", "p": 700, "grupos": [], "ativo": true, "img": ""}, {"id": "heineken", "nome": "Cerveja Heineken Latão", "desc": "Cerveja Heineken latão.", "p": 1200, "img": "img/heineken.jpg", "grupos": [], "r18": true, "ativo": true}]}]};
@@ -285,16 +286,18 @@ function abrirConfirmacao(){
   };
 }
 
-let ultimo='';
+let ultimo='',canal=null;
+const SB=window.supabase.createClient('https://iibeixnwghfbbkdjaejl.supabase.co','sb_publishable_SFS0g-Z7gPG26aIYTvJxLg_2mF0Ca90');
 async function carregar(primeira){
-  let m=DEFAULT, rasc=null;
-  if(location.search.includes('preview')){ try{ rasc=JSON.parse(localStorage.getItem('papum-rascunho')); }catch(e){} }
-  if(rasc) m=rasc; else { try{ const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'}); if(r.ok) m=await r.json(); }catch(e){} }
-  const txt=JSON.stringify(m); if(txt===ultimo) return; ultimo=txt;
-  aplicar(m); if(primeira||!camada.innerHTML){ desenharMenu(); barra(); }
+ let m=DEFAULT,rasc=null;
+ if(location.search.includes('preview')){try{rasc=JSON.parse(localStorage.getItem('papum-rascunho'));}catch(e){}}
+ if(rasc)m=rasc;
+ else{try{const {data,error}=await SB.from('cardapio').select('dados').eq('id',1).single();if(!error&&data?.dados)m=data.dados;else{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}}catch(e){try{const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'});if(r.ok)m=await r.json();}catch(x){}}}
+ const txt=JSON.stringify(m);if(txt===ultimo)return;ultimo=txt;aplicar(m);if(primeira||!camada.innerHTML){desenharMenu();barra();}
 }
 carregar(true);
-setInterval(()=>{ if(!document.hidden) carregar(false); },30000);
+if(!location.search.includes('preview'))canal=SB.channel('cardapio-em-tempo-real').on('postgres_changes',{event:'*',schema:'public',table:'cardapio',filter:'id=eq.1'},()=>carregar(false)).subscribe();
+setInterval(()=>{if(!document.hidden)carregar(false);},60000);
 </script>
 
 </body></html>
