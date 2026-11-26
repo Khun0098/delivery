@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Painel · Açaí Papum</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#f4f1f8;--sf:#fff;--fg:#26123a;--mu:#6d5a82;--ln:#ddd3ea;--br:#3a1161;--lm:#a6e03d;--er:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#150822;--sf:#221036;--fg:#f2eafa;--mu:#b5a3cc;--ln:#3a2455;--br:#7a3fc0;--er:#ff8a80;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,'Segoe UI',sans-serif}
+.w{max-width:820px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right)) 90px max(16px,env(safe-area-inset-left))}
+button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}
+input,textarea,select{width:100%;border:1.5px solid var(--ln);border-radius:9px;padding:9px 11px;background:var(--bg)}
+input[type=checkbox],input[type=radio]{width:auto}
+input[type=color]{padding:2px;height:44px}
+:focus-visible{outline:3px solid var(--lm);outline-offset:2px}
+h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}
+.bar{position:sticky;top:0;z-index:5;background:var(--br);color:#fff;margin:0 calc(-1*max(16px,env(safe-area-inset-left))) 16px;padding:12px max(16px,env(safe-area-inset-left));display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar h1{flex:1;min-width:140px}
+.b{border:0;border-radius:9px;padding:9px 14px;font-weight:700;background:var(--sf);color:var(--fg)}
+.b.p{background:var(--lm);color:#26123a}.b.d{color:var(--er)}.b.s{padding:6px 10px;font-size:14px;border:1px solid var(--ln)}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{border:1.5px solid var(--ln);background:var(--sf);border-radius:99px;padding:7px 16px;font-weight:700}
+.tabs button[aria-pressed=true]{background:var(--br);color:#fff;border-color:var(--br)}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>*{flex:1;min-width:130px}
+label{display:block;font-size:13px;font-weight:700;color:var(--mu);margin-top:10px}label>*{margin-top:4px;font-weight:400}
+.cab{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.cab>input{flex:1;min-width:150px;font-weight:700}
+.foto{width:84px;height:84px;object-fit:cover;border-radius:10px;background:var(--bg);border:1px solid var(--ln)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;margin:0;color:var(--fg)}.chk input{margin:0}
+.off{opacity:.55}
+.msg{padding:10px 14px;border-radius:10px;margin:10px 0;font-weight:700;background:var(--sf);border-left:5px solid var(--lm)}.msg.e{border-color:var(--er)}
+textarea.g{min-height:120px;font:14px/1.4 ui-monospace,Menlo,monospace}
+small{color:var(--mu)}
+#login{max-width:360px;margin:18vh auto 0}
+</style></head><body>
+<div class="w" id="login"><div class="card"><h1>Painel do cardápio</h1><label>Código de acesso<input id="cod" type="password" autocomplete="current-password"></label><p id="le" class="msg e" hidden>Código incorreto.</p><p><button class="b p" id="entrar" type="button" style="width:100%">Entrar</button></p></div></div>
+<div class="w" id="app" hidden>
+ <div class="bar"><h1>Painel · Açaí Papum</h1><a class="b" href="index.html?preview" target="_blank" rel="noopener" style="text-decoration:none">Pré-visualizar</a><button class="b p" id="pub" type="button">Publicar</button><button class="b" id="sair" type="button">Sair</button></div>
+ <div id="aviso"></div>
+ <div class="tabs" id="tabs"></div>
+ <div id="conteudo"></div>
+</div>
+<script>
+const HASH='d3599879b3f320fd7fa6a716b50cfd729e9dd2cf207c80d31a1ce294e34b920d';           // SHA-256 do código de acesso
+const REPO_PADRAO='Khun0098/delivery';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+let M=null, aba='produtos', sujo=false;
+const uid=p=>p+Date.now().toString(36)+Math.floor(Math.random()*99);
+const cents=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)&&n>=0?Math.round(n*100):0};
+const reais=c=>c?(c/100).toFixed(2).replace('.',','):'';
+
+async function entrar(){
+  if(await sha($('#cod').value.trim())!==HASH){ $('#le').hidden=false; return; }
+  ls.set('papum-adm','1'); abrir();
+}
+$('#entrar').onclick=entrar; $('#cod').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
+$('#sair').onclick=()=>{ls.del('papum-adm');location.reload()};
+async function abrir(){
+  $('#login').hidden=true; $('#app').hidden=false;
+  let rasc=null; try{rasc=JSON.parse(ls.get('papum-rascunho'))}catch(e){}
+  try{ const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'}); if(r.ok) M=await r.json(); }catch(e){}
+  if(rasc&&(!M||confirm0())) { M=rasc; sujo=true; aviso('Você tem alterações ainda não publicadas (rascunho salvo neste aparelho).'); }
+  if(!M) M={tema:{marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'},loja:{nome:'Açaí Papum',slogan:'',info:[],whatsapp:'',minimo:0,rodape:''},categorias:[]};
+  desenhar();
+}
+const confirm0=()=>true;
+function aviso(t,erro){ $('#aviso').innerHTML=t?`<div class="msg ${erro?'e':''}" role="status">${esc(t)}</div>`:''; }
+function rascunho(){ sujo=true; ls.set('papum-rascunho',JSON.stringify(M)); }
+
+function desenhar(){
+  $('#tabs').innerHTML=[['produtos','Produtos e categorias'],['loja','Loja e cores'],['pub','Publicar']].map(([k,t])=>`<button type="button" data-aba="${k}" aria-pressed="${aba===k}">${t}</button>`).join('');
+  $('#conteudo').innerHTML= aba==='produtos'?htmlProdutos(): aba==='loja'?htmlLoja():htmlPublicar();
+}
+function gruposTexto(gs){ return (gs||[]).map(g=>[`${g.t} | ${g.min} | ${g.max} | ${g.d||''}`,...g.ops.map(o=>`${o.n} | ${reais(o.p)||0}`)].join('\n')).join('\n\n'); }
+function gruposParse(t){ return t.split(/\n\s*\n/).map(b=>b.trim().split('\n').map(l=>l.trim()).filter(Boolean)).filter(l=>l.length).map((l,i)=>{
+  const [ti,mi,ma,de]=l[0].split('|').map(x=>x.trim()); const ops=l.slice(1).map(x=>{const [n,p]=x.split('|').map(y=>y.trim());return{n,p:cents(p||0)}}).filter(o=>o.n);
+  const max=Math.max(0,parseInt(ma)||ops.length); return{id:'g'+i,t:ti,d:de||'',min:Math.min(parseInt(mi)||0,max),max,ops}; }); }
+
+function htmlProdutos(){
+  return M.categorias.map((c,ci)=>`<div class="card" data-c="${ci}"><div class="cab"><input data-f="cat-nome" value="${esc(c.nome)}" aria-label="Nome da categoria"><button class="b s" data-a="cat-up" type="button">↑</button><button class="b s" data-a="cat-down" type="button">↓</button><button class="b s d" data-a="cat-del" type="button">Excluir categoria</button></div>
+  ${c.itens.map((i,ii)=>`<div class="card ${i.ativo===false?'off':''}" data-i="${ii}"><div class="row"><div style="flex:0 0 84px;min-width:84px">${i.img?`<img class="foto" src="${esc(i.img)}" alt="">`:`<div class="foto"></div>`}</div>
+   <div style="flex:3;min-width:200px"><label style="margin:0">Nome<input data-f="nome" value="${esc(i.nome)}"></label></div></div>
+   <label>Descrição<textarea data-f="desc" rows="2">${esc(i.desc)}</textarea></label>
+   <div class="row"><label>Preço (R$)<input data-f="p" inputmode="decimal" value="${reais(i.p)}"></label><label>Preço antigo, riscado (opcional)<input data-f="de" inputmode="decimal" value="${reais(i.de)}"></label></div>
+   <label>Foto<input type="file" data-f="foto" accept="image/*"></label>
+   <label>Complementos<small> (grupo: "Título | mínimo | máximo | texto", depois uma opção por linha "Nome | preço extra", grupos separados por linha em branco)</small><textarea class="g" data-f="grupos">${esc(gruposTexto(i.grupos))}</textarea></label>
+   <div class="cab" style="margin-top:10px"><label class="chk"><input type="checkbox" data-f="ativo" ${i.ativo!==false?'checked':''}>Disponível</label><label class="chk"><input type="checkbox" data-f="r18" ${i.r18?'checked':''}>Venda +18</label><span style="flex:1"></span>
+   <button class="b s" data-a="it-up" type="button">↑</button><button class="b s" data-a="it-down" type="button">↓</button><button class="b s d" data-a="it-del" type="button">Excluir</button></div></div>`).join('')}
+  <button class="b p" data-a="it-add" type="button">+ Adicionar produto em "${esc(c.nome)}"</button></div>`).join('')+`<button class="b p" data-a="cat-add" type="button">+ Nova categoria</button>`;
+}
+function htmlLoja(){ const L=M.loja,T=M.tema; return `<div class="card"><h2>Loja</h2>
+ <label>Nome<input data-l="nome" value="${esc(L.nome)}"></label><label>Slogan<input data-l="slogan" value="${esc(L.slogan)}"></label>
+ <label>Faixa de informações<small> (uma por linha)</small><textarea data-l="info" rows="3">${esc((L.info||[]).join('\n'))}</textarea></label>
+ <label>Rodapé<input data-l="rodape" value="${esc(L.rodape)}"></label>
+ <div class="row"><label>WhatsApp da loja (DDI+DDD+número)<input data-l="whatsapp" inputmode="tel" placeholder="5511999999999" value="${esc(L.whatsapp)}"></label><label>Pedido mínimo (R$)<input data-l="minimo" inputmode="decimal" value="${reais(L.minimo)}"></label></div></div>
+ <div class="card"><h2>Cores</h2><div class="row"><label>Cor principal<input type="color" data-t="marca" value="${T.marca}"></label><label>Cor de destaque (botões)<input type="color" data-t="destaque" value="${T.destaque}"></label><label>Fundo<input type="color" data-t="fundo" value="${T.fundo}"></label></div>
+ <p><button class="b s" data-a="cores-padrao" type="button">Voltar às cores originais</button></p></div>`; }
+function htmlPublicar(){ const g=JSON.parse(ls.get('papum-gh')||'{}'); return `<div class="card"><h2>Publicar no site</h2>
+ <p>As alterações ficam salvas neste aparelho até você publicar. Depois de publicar, o site online leva cerca de 1 minuto para atualizar e os clientes veem sozinhos, sem recarregar.</p>
+ <label>Repositório<input id="gh-repo" value="${esc(g.repo||REPO_PADRAO)}"></label>
+ <label>Token do GitHub<small> (com permissão de escrever no repositório; fica só neste aparelho)</small><input id="gh-token" type="password" autocomplete="off" value="${esc(g.token||'')}"></label>
+ <p><button class="b p" data-a="publicar" type="button">Publicar agora</button> <button class="b" data-a="baixar" type="button">Baixar menu.json</button></p>
+ <p><small>Sem token? Baixe o menu.json e envie no GitHub (Add file → Upload files), substituindo o antigo. Fotos novas ficam dentro do menu.json.</small></p></div>`; }
+
+document.addEventListener('click',async e=>{
+  const ab=e.target.closest('[data-aba]'); if(ab){aba=ab.dataset.aba;desenhar();return;}
+  const a=e.target.closest('[data-a]'); if(!a)return; const act=a.dataset.a;
+  const cEl=a.closest('[data-c]'), ci=cEl?+cEl.dataset.c:-1, iEl=a.closest('[data-i]'), ii=iEl?+iEl.dataset.i:-1;
+  const mv=(arr,i,d)=>{const j=i+d; if(j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]];};
+  if(act==='cat-add') M.categorias.push({id:uid('c'),nome:'Nova categoria',itens:[]});
+  else if(act==='cat-up') mv(M.categorias,ci,-1); else if(act==='cat-down') mv(M.categorias,ci,1);
+  else if(act==='cat-del'){ if(a.dataset.sure){M.categorias.splice(ci,1);} else {a.dataset.sure=1;a.textContent='Clique de novo para confirmar';return;} }
+  else if(act==='it-add') M.categorias[ci].itens.push({id:uid('p'),nome:'Novo produto',desc:'',p:0,img:'',ativo:true,grupos:[]});
+  else if(act==='it-up') mv(M.categorias[ci].itens,ii,-1); else if(act==='it-down') mv(M.categorias[ci].itens,ii,1);
+  else if(act==='it-del'){ if(a.dataset.sure){M.categorias[ci].itens.splice(ii,1);} else {a.dataset.sure=1;a.textContent='Clique de novo para confirmar';return;} }
+  else if(act==='cores-padrao') M.tema={marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'};
+  else if(act==='baixar'){ baixar(); return; }
+  else if(act==='publicar'){ await publicar(); return; }
+  rascunho(); desenhar();
+});
+document.addEventListener('change',e=>{
+  const f=e.target.dataset; if(!M||e.target.closest('#login')) return;
+  const cEl=e.target.closest('[data-c]'), iEl=e.target.closest('[data-i]');
+  if(f.l){ const v=e.target.value; M.loja[f.l]= f.l==='info'?v.split('\n').map(x=>x.trim()).filter(Boolean): f.l==='minimo'?cents(v):v.trim(); rascunho(); return; }
+  if(f.t){ M.tema[f.t]=e.target.value; rascunho(); return; }
+  if(!cEl) return; const c=M.categorias[+cEl.dataset.c];
+  if(f.f==='cat-nome'&&!iEl){ c.nome=e.target.value.trim()||'Sem nome'; rascunho(); return; }
+  if(!iEl) return; const it=c.itens[+iEl.dataset.i];
+  if(f.f==='nome') it.nome=e.target.value.trim(); else if(f.f==='desc') it.desc=e.target.value.trim();
+  else if(f.f==='p') it.p=cents(e.target.value); else if(f.f==='de'){const v=cents(e.target.value); if(v) it.de=v; else delete it.de;}
+  else if(f.f==='ativo'){ it.ativo=e.target.checked; iEl.classList.toggle('off',!it.ativo); } else if(f.f==='r18') it.r18=e.target.checked;
+  else if(f.f==='grupos') it.grupos=gruposParse(e.target.value);
+  else if(f.f==='foto'&&e.target.files[0]) { reduzir(e.target.files[0]).then(d=>{it.img=d;rascunho();desenhar();}).catch(()=>aviso('Não consegui ler essa imagem. Use JPG ou PNG.',true)); return; }
+  rascunho();
+});
+function reduzir(file){ return new Promise((ok,no)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{ const t=520, k=Math.min(1,t/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg',.82)); }; im.onerror=no; im.src=u; }); }
+function baixar(){ const b=new Blob([JSON.stringify(M,null,1)],{type:'application/json'}), a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='menu.json'; document.body.appendChild(a); a.click(); a.remove(); aviso('menu.json baixado. Envie ele no GitHub para publicar.'); }
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+async function gh(repo,token,path,corpo){
+  const url=`https://api.github.com/repos/${repo}/contents/${path}`, H={Authorization:'Bearer '+token,Accept:'application/vnd.github+json'};
+  let sha; const r0=await fetch(url,{headers:H}); if(r0.ok) sha=(await r0.json()).sha;
+  const r=await fetch(url,{method:'PUT',headers:H,body:JSON.stringify({message:'Atualiza cardápio',content:corpo,sha})});
+  if(!r.ok) throw new Error((await r.json()).message||r.status);
+}
+async function publicar(){
+  const repo=$('#gh-repo').value.trim(), token=$('#gh-token').value.trim();
+  if(!repo||!token){ aviso('Informe o repositório e o token, ou use "Baixar menu.json".',true); return; }
+  ls.set('papum-gh',JSON.stringify({repo,token})); aviso('Publicando…');
+  try{
+    const out=JSON.parse(JSON.stringify(M));
+    for(const c of out.categorias) for(const i of c.itens) if((i.img||'').startsWith('data:')){
+      const caminho='img/'+i.id+'-'+Date.now().toString(36)+'.jpg'; await gh(repo,token,caminho,i.img.split(',')[1]); i.img=caminho; }
+    await gh(repo,token,'menu.json',b64(JSON.stringify(out,null,1)));
+    M=out; ls.del('papum-rascunho'); sujo=false; desenhar();
+    aviso('Publicado. O site online atualiza em cerca de 1 minuto.');
+  }catch(err){ aviso('Não foi possível publicar: '+err.message+'. Confira o token e o nome do repositório.',true); }
+}
+addEventListener('beforeunload',e=>{ if(sujo){ e.preventDefault(); } });
+if(ls.get('papum-adm')==='1') abrir();
+</script></body></html>
