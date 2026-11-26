@@ -34,7 +34,7 @@ small{color:var(--mu)}
 </style></head><body>
 <div class="w" id="login"><div class="card"><h1>Painel do cardápio</h1><label>Código de acesso<input id="cod" type="password" autocomplete="current-password"></label><p id="le" class="msg e" hidden>Código incorreto.</p><p><button class="b p" id="entrar" type="button" style="width:100%">Entrar</button></p></div></div>
 <div class="w" id="app" hidden>
- <div class="bar"><h1>Painel · Açaí Papum</h1><a class="b" href="index.html?preview" target="_blank" rel="noopener" style="text-decoration:none">Pré-visualizar</a><button class="b p" id="pub" type="button">Publicar</button><button class="b" id="sair" type="button">Sair</button></div>
+ <div class="bar"><h1>Painel · Açaí Papum</h1><a class="b" href="index.html?preview" target="_blank" rel="noopener" style="text-decoration:none">Pré-visualizar</a><span id="est" style="font-size:13px;font-weight:700"></span><button class="b p" id="pub" type="button">Publicar</button><button class="b" id="sair" type="button">Sair</button></div>
  <div id="aviso"></div>
  <div class="tabs" id="tabs"></div>
  <div id="conteudo"></div>
@@ -64,11 +64,17 @@ async function abrir(){
   try{ const r=await fetch('menu.json?t='+Date.now(),{cache:'no-store'}); if(r.ok) M=await r.json(); }catch(e){}
   if(rasc&&(!M||confirm0())) { M=rasc; sujo=true; aviso('Você tem alterações ainda não publicadas (rascunho salvo neste aparelho).'); }
   if(!M) M={tema:{marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'},loja:{nome:'Açaí Papum',slogan:'',info:[],whatsapp:'',minimo:0,rodape:''},categorias:[]};
-  desenhar();
+  desenhar(); estado(sujo?'Alterações não publicadas':'');
 }
 const confirm0=()=>true;
 function aviso(t,erro){ $('#aviso').innerHTML=t?`<div class="msg ${erro?'e':''}" role="status">${esc(t)}</div>`:''; }
-function rascunho(){ sujo=true; ls.set('papum-rascunho',JSON.stringify(M)); }
+function estado(t){ const e=document.getElementById('est'); if(e) e.textContent=t||''; }
+function cfg(){ try{return JSON.parse(ls.get('papum-gh')||'{}')}catch(e){return{}} }
+let timer=null;
+function rascunho(){ sujo=true; ls.set('papum-rascunho',JSON.stringify(M)); const g=cfg();
+  if(g.token&&g.auto){ estado('Publicando em instantes…'); clearTimeout(timer); timer=setTimeout(()=>publicar(true),1500); }
+  else estado('Alterações não publicadas'); }
+$('#pub').onclick=()=>{ const g=cfg(); if(g.token&&g.repo) publicar(false); else { aba='pub'; desenhar(); aviso('Para o site mostrar as mudanças para todos, informe o token do GitHub e toque em Publicar agora.',true); window.scrollTo(0,0); } };
 
 function desenhar(){
   $('#tabs').innerHTML=[['produtos','Produtos e categorias'],['loja','Loja e cores'],['pub','Publicar'],['qr','QR Code']].map(([k,t])=>`<button type="button" data-aba="${k}" aria-pressed="${aba===k}">${t}</button>`).join('');
@@ -111,10 +117,11 @@ function gerarQR(){ const el=document.getElementById('qr'); if(!el)return; el.in
   if(typeof QRCode==='undefined'){ document.getElementById('qr-erro').hidden=false; return; }
   new QRCode(el,{text:u,width:256,height:256,correctLevel:QRCode.CorrectLevel.M}); }
 document.addEventListener('input',e=>{ if(e.target.id==='qr-url') gerarQR(); });
-function htmlPublicar(){ const g=JSON.parse(ls.get('papum-gh')||'{}'); return `<div class="card"><h2>Publicar no site</h2>
+function htmlPublicar(){ const g=cfg(); return `<div class="card"><h2>Publicar no site</h2>
  <p>As alterações ficam salvas neste aparelho até você publicar. Depois de publicar, o site online leva cerca de 1 minuto para atualizar e os clientes veem sozinhos, sem recarregar.</p>
  <label>Repositório<input id="gh-repo" value="${esc(g.repo||REPO_PADRAO)}"></label>
  <label>Token do GitHub<small> (com permissão de escrever no repositório; fica só neste aparelho)</small><input id="gh-token" type="password" autocomplete="off" value="${esc(g.token||'')}"></label>
+ <label class="chk" style="margin-top:12px"><input type="checkbox" id="gh-auto" ${g.auto?'checked':''}>Publicar automaticamente a cada alteração</label>
  <p><button class="b p" data-a="publicar" type="button">Publicar agora</button> <button class="b" data-a="baixar" type="button">Baixar menu.json</button></p>
  <p><small>Sem token? Baixe o menu.json e envie no GitHub (Add file → Upload files), substituindo o antigo. Fotos novas ficam dentro do menu.json.</small></p></div>`; }
 
@@ -134,7 +141,7 @@ document.addEventListener('click',async e=>{
   else if(act==='qr-baixar'){ const cv=document.querySelector('#qr canvas'); if(!cv){aviso('Gere o QR Code primeiro.',true);return;}
     const o=document.createElement('canvas'); o.width=o.height=cv.width+64; const x=o.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,o.width,o.height); x.drawImage(cv,32,32);
     const l=document.createElement('a'); l.href=o.toDataURL('image/png'); l.download='qrcode-cardapio.png'; document.body.appendChild(l); l.click(); l.remove(); return; }
-  else if(act==='publicar'){ await publicar(); return; }
+  else if(act==='publicar'){ await publicar(false); return; }
   rascunho(); desenhar();
 });
 document.addEventListener('change',e=>{
@@ -162,19 +169,28 @@ async function gh(repo,token,path,corpo){
   const r=await fetch(url,{method:'PUT',headers:H,body:JSON.stringify({message:'Atualiza cardápio',content:corpo,sha})});
   if(!r.ok) throw new Error((await r.json()).message||r.status);
 }
-async function publicar(){
-  const repo=$('#gh-repo').value.trim(), token=$('#gh-token').value.trim();
-  if(!repo||!token){ aviso('Informe o repositório e o token, ou use "Baixar menu.json".',true); return; }
-  ls.set('papum-gh',JSON.stringify({repo,token})); aviso('Publicando…');
+let publicando=false, pendente=false;
+async function publicar(auto){
+  const el=document.getElementById('gh-repo');
+  let g=cfg();
+  if(el){ g={repo:el.value.trim(),token:document.getElementById('gh-token').value.trim(),auto:document.getElementById('gh-auto').checked}; }
+  if(!g.repo||!g.token){ aviso('Informe o repositório e o token, ou use "Baixar menu.json".',true); return; }
+  ls.set('papum-gh',JSON.stringify(g));
+  if(publicando){ pendente=true; return; }
+  publicando=true; estado('Publicando…'); if(!auto) aviso('Publicando…');
   try{
-    const out=JSON.parse(JSON.stringify(M));
-    for(const c of out.categorias) for(const i of c.itens) if((i.img||'').startsWith('data:')){
-      const caminho='img/'+i.id+'-'+Date.now().toString(36)+'.jpg'; await gh(repo,token,caminho,i.img.split(',')[1]); i.img=caminho; }
-    await gh(repo,token,'menu.json',b64(JSON.stringify(out,null,1)));
-    M=out; ls.del('papum-rascunho'); sujo=false; desenhar();
-    aviso('Publicado. O site online atualiza em cerca de 1 minuto.');
-  }catch(err){ aviso('Não foi possível publicar: '+err.message+'. Confira o token e o nome do repositório.',true); }
+    let trocou=false;
+    for(const c of M.categorias) for(const i of c.itens) if((i.img||'').startsWith('data:')){
+      const caminho='img/'+i.id+'-'+Date.now().toString(36)+'.jpg'; await gh(g.repo,g.token,caminho,i.img.split(',')[1]); i.img=caminho; trocou=true; }
+    await gh(g.repo,g.token,'menu.json',b64(JSON.stringify(M,null,1)));
+    ls.set('papum-rascunho',JSON.stringify(M)); sujo=false;
+    const h=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    estado('Publicado às '+h);
+    aviso('Publicado às '+h+'. O site online atualiza em cerca de 1 minuto e os clientes veem sozinhos.');
+    if(!auto||trocou&&aba!=='produtos') desenhar();
+  }catch(err){ estado('Erro ao publicar'); aviso('Não foi possível publicar: '+err.message+'. Confira o token (precisa de permissão de escrita) e o nome do repositório.',true); }
+  publicando=false; if(pendente){ pendente=false; publicar(true); }
 }
-addEventListener('beforeunload',e=>{ if(sujo){ e.preventDefault(); } });
+addEventListener('beforeunload',e=>{ if(sujo&&!cfg().auto){ e.preventDefault(); } });
 if(ls.get('papum-adm')==='1') abrir();
 </script></body></html>
