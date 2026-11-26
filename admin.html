@@ -39,6 +39,7 @@ small{color:var(--mu)}
  <div class="tabs" id="tabs"></div>
  <div id="conteudo"></div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const HASH='d3599879b3f320fd7fa6a716b50cfd729e9dd2cf207c80d31a1ce294e34b920d';           // SHA-256 do código de acesso
 const REPO_PADRAO='Khun0098/delivery';
@@ -70,8 +71,9 @@ function aviso(t,erro){ $('#aviso').innerHTML=t?`<div class="msg ${erro?'e':''}"
 function rascunho(){ sujo=true; ls.set('papum-rascunho',JSON.stringify(M)); }
 
 function desenhar(){
-  $('#tabs').innerHTML=[['produtos','Produtos e categorias'],['loja','Loja e cores'],['pub','Publicar']].map(([k,t])=>`<button type="button" data-aba="${k}" aria-pressed="${aba===k}">${t}</button>`).join('');
-  $('#conteudo').innerHTML= aba==='produtos'?htmlProdutos(): aba==='loja'?htmlLoja():htmlPublicar();
+  $('#tabs').innerHTML=[['produtos','Produtos e categorias'],['loja','Loja e cores'],['pub','Publicar'],['qr','QR Code']].map(([k,t])=>`<button type="button" data-aba="${k}" aria-pressed="${aba===k}">${t}</button>`).join('');
+  $('#conteudo').innerHTML= aba==='produtos'?htmlProdutos(): aba==='loja'?htmlLoja():aba==='qr'?htmlQR():htmlPublicar();
+  if(aba==='qr') setTimeout(gerarQR,0);
 }
 function gruposTexto(gs){ return (gs||[]).map(g=>[`${g.t} | ${g.min} | ${g.max} | ${g.d||''}`,...g.ops.map(o=>`${o.n} | ${reais(o.p)||0}`)].join('\n')).join('\n\n'); }
 function gruposParse(t){ return t.split(/\n\s*\n/).map(b=>b.trim().split('\n').map(l=>l.trim()).filter(Boolean)).filter(l=>l.length).map((l,i)=>{
@@ -97,6 +99,18 @@ function htmlLoja(){ const L=M.loja,T=M.tema; return `<div class="card"><h2>Loja
  <div class="row"><label>WhatsApp da loja (DDI+DDD+número)<input data-l="whatsapp" inputmode="tel" placeholder="5511999999999" value="${esc(L.whatsapp)}"></label><label>Pedido mínimo (R$)<input data-l="minimo" inputmode="decimal" value="${reais(L.minimo)}"></label></div></div>
  <div class="card"><h2>Cores</h2><div class="row"><label>Cor principal<input type="color" data-t="marca" value="${T.marca}"></label><label>Cor de destaque (botões)<input type="color" data-t="destaque" value="${T.destaque}"></label><label>Fundo<input type="color" data-t="fundo" value="${T.fundo}"></label></div>
  <p><button class="b s" data-a="cores-padrao" type="button">Voltar às cores originais</button></p></div>`; }
+function urlCardapio(){ return location.href.replace(/admin\.html.*$/,'').replace(/[?#].*$/,''); }
+function htmlQR(){ return `<div class="card"><h2>QR Code do cardápio</h2><p>O cliente escaneia com a câmera do celular e abre o cardápio.</p>
+ <label>Endereço do cardápio<input id="qr-url" inputmode="url" value="${esc(urlCardapio())}"></label>
+ <div id="qr" style="background:#fff;padding:16px;border-radius:12px;width:fit-content;margin:16px 0;max-width:100%"></div>
+ <p id="qr-erro" class="msg e" hidden>Não foi possível gerar o QR Code. Verifique a internet e tente de novo.</p>
+ <p><button class="b p" data-a="qr-baixar" type="button">Baixar imagem (PNG)</button></p>
+ <p><small>Dica: imprima em tamanho de pelo menos 5 cm e teste com o seu celular antes de colar no balcão. Se mudar o endereço do site, gere de novo.</small></p></div>`; }
+function gerarQR(){ const el=document.getElementById('qr'); if(!el)return; el.innerHTML='';
+  const u=document.getElementById('qr-url').value.trim();
+  if(typeof QRCode==='undefined'){ document.getElementById('qr-erro').hidden=false; return; }
+  new QRCode(el,{text:u,width:256,height:256,correctLevel:QRCode.CorrectLevel.M}); }
+document.addEventListener('input',e=>{ if(e.target.id==='qr-url') gerarQR(); });
 function htmlPublicar(){ const g=JSON.parse(ls.get('papum-gh')||'{}'); return `<div class="card"><h2>Publicar no site</h2>
  <p>As alterações ficam salvas neste aparelho até você publicar. Depois de publicar, o site online leva cerca de 1 minuto para atualizar e os clientes veem sozinhos, sem recarregar.</p>
  <label>Repositório<input id="gh-repo" value="${esc(g.repo||REPO_PADRAO)}"></label>
@@ -117,6 +131,9 @@ document.addEventListener('click',async e=>{
   else if(act==='it-del'){ if(a.dataset.sure){M.categorias[ci].itens.splice(ii,1);} else {a.dataset.sure=1;a.textContent='Clique de novo para confirmar';return;} }
   else if(act==='cores-padrao') M.tema={marca:'#3a1161',destaque:'#a6e03d',fundo:'#f7f3fb'};
   else if(act==='baixar'){ baixar(); return; }
+  else if(act==='qr-baixar'){ const cv=document.querySelector('#qr canvas'); if(!cv){aviso('Gere o QR Code primeiro.',true);return;}
+    const o=document.createElement('canvas'); o.width=o.height=cv.width+64; const x=o.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,o.width,o.height); x.drawImage(cv,32,32);
+    const l=document.createElement('a'); l.href=o.toDataURL('image/png'); l.download='qrcode-cardapio.png'; document.body.appendChild(l); l.click(); l.remove(); return; }
   else if(act==='publicar'){ await publicar(); return; }
   rascunho(); desenhar();
 });
